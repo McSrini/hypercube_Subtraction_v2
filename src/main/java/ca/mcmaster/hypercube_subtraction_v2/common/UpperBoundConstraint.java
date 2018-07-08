@@ -21,6 +21,7 @@ public class UpperBoundConstraint {
     
     public List<VariableCoefficientTuple>   sortedConstraintExpr = new ArrayList<VariableCoefficientTuple>() ;     
     public double upperBound;     
+    public String name ;
      
      
     //private constructor for local use in this file
@@ -39,6 +40,7 @@ public class UpperBoundConstraint {
     public UpperBoundConstraint (LowerBoundConstraint lbc) {
         this.sortedConstraintExpr= lbc.sortedConstraintExpr ;
         this.upperBound = lbc.lowerBound;
+        this.name = lbc.name;
         
     }
     
@@ -89,12 +91,13 @@ public class UpperBoundConstraint {
         return reducedConstraint;
     }
     
-    /* public String toString() {
+      public String printMe() {
         String str = "Constraint name "+ name ;
         str+=("Upper bound is "+ this.upperBound+"\n");
         for (VariableCoefficientTuple tuple : sortedConstraintExpr) {
             str += ("Var is " + tuple.varName  + " and its coeff is "+ tuple.coeff+"\n") ;
         }
+        //System.out.println(str);
         return str;
-    }    */
+    }    
 }

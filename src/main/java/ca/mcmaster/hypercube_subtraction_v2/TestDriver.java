@@ -6,11 +6,12 @@
 package ca.mcmaster.hypercube_subtraction_v2;
 
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
-import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*;
-import ca.mcmaster.hypercube_subtraction_v2.collection.LeafNode;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*; 
+import ca.mcmaster.hypercube_subtraction_v2.collection.Rectangle;
 import ca.mcmaster.hypercube_subtraction_v2.collection.RectangleCollector;
 import ca.mcmaster.hypercube_subtraction_v2.common.*;
 import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.CplexTree;
+import ca.mcmaster.hypercube_subtraction_v2.merge.RectangleMerger;
 import ca.mcmaster.hypercube_subtraction_v2.utils.MIP_Reader;
 import ilog.cplex.IloCplex;
 import static java.lang.System.exit;
@@ -35,7 +36,7 @@ public class TestDriver {
     public static  List<String> allVariablesInModel ;
     
     static {
-        logger.setLevel(Level.OFF);
+        logger.setLevel(LOGGING_LEVEL);
         PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
         try {
             logger.addAppender(new  RollingFileAppender(layout,LOG_FOLDER+TestDriver.class.getSimpleName()+ LOG_FILE_EXTENSION));
@@ -58,11 +59,19 @@ public class TestDriver {
             objective= MIP_Reader.getObjective(mip);            
             mipConstraintList= MIP_Reader.getConstraints(mip);
 
-            logger.debug ("Collected objective and constraints" ) ;
+            logger.info ("Collected objective and constraints. Dumping parameters:" ) ;
+            logger.info("MIP_FILENAME "+ MIP_FILENAME) ;
+            //public static final String MIP_FILENAME = "nvmxnnmnm,mncmn , ,mnmvc,vmcnishani.mps";
+            logger.info("HYPERCUBE_COLLECTION_LP_THRESHOLD "+ HYPERCUBE_COLLECTION_LP_THRESHOLD) ;
+            logger.info("HYPERCUBE_COLLECTION_COUNT_THRESHOLD "+ HYPERCUBE_COLLECTION_COUNT_THRESHOLD) ;
+            logger.info("RAMP_UP_FOR_THIS_MANY_MINUTES "+RAMP_UP_FOR_THIS_MANY_MINUTES) ;  
+            logger.info("USE_STRICT_INEQUALITY_IN_MIP "+USE_STRICT_INEQUALITY_IN_MIP) ; 
+            logger.info("MIP_EMPHASIS "+MIP_EMPHASIS) ;
+            logger.info("USE_PURE_CPLEX "+USE_PURE_CPLEX) ;
+            logger.info("TOTAL_SOLUTION_TIME_LIMIT_SECONDS "+TOTAL_SOLUTION_TIME_LIMIT_SECONDS) ;
+       
+           
             
-            
-          
-
             CplexTree cplexRefTree = new CplexTree () ;
             cplexRefTree.solve();
              

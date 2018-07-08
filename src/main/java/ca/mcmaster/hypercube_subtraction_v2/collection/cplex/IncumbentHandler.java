@@ -50,7 +50,11 @@ public class IncumbentHandler    extends IloCplex.IncumbentCallback{
             
             if (value == ubc.upperBound) {
                 reject ();
+                BranchingAssistorCallback.incumbentRejectedFlag=true;
                 //System.out.println("solution rejected") ;
+                for (double val: values) {
+                    //System.out.println(val + ", ") ;
+                }
             }
         }
     }

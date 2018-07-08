@@ -14,6 +14,10 @@ public class Constants {
     public static int ZERO = 0;
     public static int ONE = 1;
     public static int TWO = 2;
+    public static int THREE = 3;
+    public static int SIXTY = 60;
+    public static int THOUSAND = 1000;
+    public static int BILLION = 1000000000;
        
     public static double DOUBLE_ZERO =0 ;
     public static double DOUBLE_ONE =1;

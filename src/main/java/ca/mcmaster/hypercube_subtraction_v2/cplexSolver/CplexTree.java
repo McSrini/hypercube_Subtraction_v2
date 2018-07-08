@@ -5,13 +5,20 @@
  */
 package ca.mcmaster.hypercube_subtraction_v2.cplexSolver;
   
-import static ca.mcmaster.hypercube_subtraction_v2.Constants.ONE;
-import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MIP_FILENAME;
+import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.LOGGING_LEVEL;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MIP_EMPHASIS;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MIP_FILENAME; 
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.TOTAL_SOLUTION_TIME_LIMIT_SECONDS;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_PURE_CPLEX;
 import ilog.concert.IloException;
 import ilog.concert.IloLPMatrix;
-import ilog.cplex.IloCplex;
-import ilog.cplex.IloCplex.BranchCallback;
-import static ilog.cplex.IloCplex.MIPEmphasis.BestBound;
+import ilog.cplex.IloCplex;  
+import static java.lang.System.exit;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.apache.log4j.RollingFileAppender;
 
 /**
  *
@@ -21,32 +28,63 @@ public class CplexTree {
     
     private IloCplex cplex ;
     private BaseBranchCallback  branchingCallback= null;
+    
+       
+    private static Logger logger=Logger.getLogger(CplexTree.class);
+    static {
+        logger.setLevel(LOGGING_LEVEL );
+        PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
+        try {
+            logger.addAppender(new  RollingFileAppender(layout,LOG_FOLDER+CplexTree.class.getSimpleName()+ LOG_FILE_EXTENSION));
+            logger.setAdditivity(false);
+        } catch (Exception ex) {
+            ///
+            System.err.println("Exit: unable to initialize logging"+ex);       
+            exit(ONE);
+        }
+    } 
         
     public CplexTree () throws IloException {
         cplex = new IloCplex() ;
         cplex.importModel(MIP_FILENAME);
         
-        cplex.setParam(IloCplex.Param.Emphasis.MIP, BestBound);
+        //cplex.setParam(IloCplex.Param.MIP.Strategy.PresolveNode, -ONE);
+        //cplex.setParam(IloCplex.Param.MIP.Strategy.Probe, -ONE);
+        cplex.setParam(IloCplex.Param.Emphasis.MIP,  MIP_EMPHASIS);
         cplex.setParam( IloCplex.Param.MIP.Strategy.HeuristicFreq , -ONE);
-        cplex.setParam(IloCplex.Param.MIP.Limits.CutPasses, -ONE);
-        cplex.setParam(IloCplex.Param.Preprocessing.Presolve, false);
-        cplex.setParam(IloCplex.Param.MIP.Strategy.File, ONE+ONE+ONE);
+        //cplex.setParam(IloCplex.Param.MIP.Limits.CutPasses, -ONE);
+        //cplex.setParam(IloCplex.Param.Preprocessing.Presolve, false);
+        cplex.setParam(IloCplex.Param.MIP.Strategy.File, THREE);
+        cplex.setParam( IloCplex.Param.TimeLimit, TOTAL_SOLUTION_TIME_LIMIT_SECONDS);
                 
         IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
-        
-        //turn this to true to compare our branching method with CPLEX native branching
-        boolean useCplexDefaultBranching = false; 
-        if (useCplexDefaultBranching) {
+        if (USE_PURE_CPLEX) {
             branchingCallback=new BaseBranchCallback();            
         } else {
-            branchingCallback = new BranchHandler  ( lpMatrix.getNumVars());             
+            branchingCallback = new HypercubeBranchCallback  ( lpMatrix.getNumVars());             
         }
         cplex.use( branchingCallback);
+        
+
     }
     
     public void solve () throws IloException {
+        
+       
         cplex.solve();
-        System.out.println("Total number of branches was "+ this.branchingCallback.totalNumberOFBranches);
+        //log statistics
+        logger.info("numLeafsAfterRampup "+ branchingCallback.numLeafsAfterRampup );
+        logger.info( "numLeafsBranchedWithOurMethod "+branchingCallback.numLeafsBranchedWithOurMethod );
+        logger.info ("total number of branches up till solution " + branchingCallback.totalNumberOFBranches) ;
+        logger.info ("Time for hypercube collection seconds "+branchingCallback.timeTakenForHypercubeCollection_seconds) ;
+        logger.info ("best bound is " + cplex.getBestObjValue()) ;
+        try {
+            logger.info ("best known solution is " + cplex.getObjValue()) ;
+        }catch (Exception ex) {
+            logger.warn(ex) ;
+            logger.info ("no known solution  "  ) ;
+        }
+          
     }
     
 }

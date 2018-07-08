@@ -1,3 +1,4 @@
+
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
@@ -6,8 +7,13 @@
 package ca.mcmaster.hypercube_subtraction_v2.merge;
   
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.LOGGING_LEVEL;
 import ca.mcmaster.hypercube_subtraction_v2.collection.*;
+import static java.lang.System.exit;
 import java.util.*;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.apache.log4j.RollingFileAppender;
 
 /**
  *
@@ -23,6 +29,23 @@ public class RectangleMerger {
     
     public boolean isMIP_Infeasible = false;
     
+    private static Logger logger=Logger.getLogger(RectangleMerger.class);
+    static {
+        logger.setLevel(LOGGING_LEVEL);
+        PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
+        try {
+            RollingFileAppender appender = new  RollingFileAppender(layout,LOG_FOLDER+RectangleMerger.class.getSimpleName()+ LOG_FILE_EXTENSION);
+            appender.setMaxBackupIndex(SIXTY);
+            logger.addAppender(appender);
+             
+            logger.setAdditivity(false);
+        } catch (Exception ex) {
+            ///
+            System.err.println("Exit: unable to initialize logging"+ex);       
+            exit(ONE);
+        }
+    } 
+    
     public RectangleMerger (List<Rectangle> rects) {
         for (Rectangle rect : rects){
             List<Rectangle> current = this.rectangleMap.get(rect.getSize());
@@ -33,8 +56,16 @@ public class RectangleMerger {
     }
     
     public List<Rectangle> absorbAndMerge (){
-        this.absorb();
-        this.merge();
+        
+        
+        logger.info("num of infeasible cubes collected before absorb "+ this.getNumberOFRectsInMap()) ;
+        int countAbsorbed=this.absorb();
+        logger.info("num of infeasible cubes collected  after absorb"+ this.getNumberOFRectsInMap()) ;
+
+        int countMerged =this.merge();
+        logger.info("num of infeasible cubes collected after merge  "+ this.getNumberOFRectsInMap()) ;
+
+        
         List<Rectangle> result = new ArrayList<Rectangle> ();
         for ( List<Rectangle> rectList : this.rectangleMap.values()) {
             result.addAll(rectList) ;
@@ -43,7 +74,9 @@ public class RectangleMerger {
     }
     
     //absorb rects into other rects in the MAP
-    private void absorb () {
+    private int absorb () {
+        
+        int countAbsorbed = ZERO;
         
         int max =  this.rectangleMap.lastKey();
         int min =  this.rectangleMap.firstKey();
@@ -57,12 +90,17 @@ public class RectangleMerger {
             List<Rectangle> newRectanglesAtCurrentDepth = new ArrayList<Rectangle> ();
             //check is any of the higher level rects will absorb these rects, if no then retain else ignore(i.e. discard)
             for (Rectangle rect : rectanglesAtCurrentDepth){
+                logger.debug("check if rect will be absorbed "+ rect.printMe("")) ;
                 if (!isAbsorbed(rect)) {
                     newRectanglesAtCurrentDepth.add(rect);
-                } 
+                } else {
+                    countAbsorbed++;
+                }
             }
             if (newRectanglesAtCurrentDepth.size()>ZERO) this.rectangleMap.put( currentDepth, newRectanglesAtCurrentDepth );
         }
+        
+        return countAbsorbed;
         
     }
     
@@ -78,6 +116,7 @@ public class RectangleMerger {
             for ( Rectangle rect: this.rectangleMap.get( depth)){
                if (rect.isAbsorbed( currentRect))   {
                    result = true;
+                   logger.debug (currentRect.printMe( "") + " absorbed into " +rect.printMe("") ) ;
                    break;
                }
             }
@@ -89,16 +128,21 @@ public class RectangleMerger {
     }
     
     //merge rects with other rects in map that have 1 complimentary variable
-    private void merge () {
+    private int merge () {
+        
+        int countMerged = ZERO;
        
         int max =  this.rectangleMap.lastKey();
-        int min =  this.rectangleMap.firstKey();
+        //int min =  this.rectangleMap.firstKey();
         
         //merge from largest depth first, as this may give you more rects at higher depths
-        for (int currentDepth = max; currentDepth >= min ; currentDepth -- ){
+        for (int currentDepth = max; currentDepth >ZERO ; currentDepth -- ){
             
             List<Rectangle> rectanglesAtCurrentDepth = this.rectangleMap.remove(currentDepth );
             if (null==rectanglesAtCurrentDepth) continue;
+            
+            logger.info("current depth for merge is "+ currentDepth);
+            
             
             //check if any of the rects at the current depth differ in 
             //only 1 complimentarty var branching. if so remove both and 
@@ -106,11 +150,16 @@ public class RectangleMerger {
             List<Rectangle> rectanglesToBeRemovedFromThisDepth = new ArrayList<Rectangle> ();
             for (Rectangle rectOne: rectanglesAtCurrentDepth) {
                 
+                logger.debug("trying to merge "+rectOne.printMe(""));
+                
                 if (rectanglesToBeRemovedFromThisDepth.contains( rectOne)) continue;
                 
                 boolean isComplimentFound = false;
                 Rectangle complimentaryRect= null;
                 for (Rectangle rectTwo: rectanglesAtCurrentDepth) {
+                    
+                    logger.debug("trying to MATCH with "+rectTwo.printMe(""));
+                     
                     Rectangle mergedRect = rectOne.mergeIfComplimentary ( rectTwo);
                     if (null!= mergedRect) {
                         //add merged rect upstairs
@@ -121,9 +170,12 @@ public class RectangleMerger {
                         
                         isComplimentFound= true;
                         complimentaryRect= rectTwo;
+                        countMerged ++;
+                        logger.debug (rectOne.printMe( "") + " merged with " + rectTwo.printMe( "")) ;
                         break;
                     }   
                 }
+                
                 if (!isComplimentFound) {
                     //no complimentary rect for rectOne, keep it at this depth                     
                 }else {
@@ -131,16 +183,37 @@ public class RectangleMerger {
                     rectanglesToBeRemovedFromThisDepth.add(rectOne) ;
                     rectanglesToBeRemovedFromThisDepth.add(complimentaryRect) ;
                 }
+                
             }
             
             List<Rectangle> newRectsAtThisDepth = new ArrayList<Rectangle> ();
             for (Rectangle rect : rectanglesAtCurrentDepth) {
                 if (!rectanglesToBeRemovedFromThisDepth.contains(rect)) newRectsAtThisDepth.add(rect);
             }
-            if (newRectsAtThisDepth.size()>ZERO) this.rectangleMap.put( currentDepth, newRectsAtThisDepth );
+            
+            if (newRectsAtThisDepth.size()>ZERO) {
+                this.rectangleMap.put( currentDepth, newRectsAtThisDepth );
+                logger.debug("number of rects left at level "+currentDepth+ " is " +newRectsAtThisDepth.size()) ;
+            }else{
+                logger.debug("no rects left at level "+currentDepth) ;
+            }
  
         }
  
         if (this.rectangleMap.containsKey(ZERO)        ) this.isMIP_Infeasible=true;
+        return countMerged;
+    }
+    
+    private int getNumberOFRectsInMap () {
+        int size = ZERO;
+        
+        for (List<Rectangle> rects :rectangleMap.values()) {
+            size+=rects.size();
+            for (Rectangle rect: rects){
+                logger.debug (rect.printMe("")) ;
+            }
+        }
+        
+        return size;
     }
 }

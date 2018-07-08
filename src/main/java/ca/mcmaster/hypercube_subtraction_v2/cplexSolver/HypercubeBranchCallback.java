@@ -5,8 +5,11 @@
  */
 package ca.mcmaster.hypercube_subtraction_v2.cplexSolver;
   
-import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
-import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*;
+import static ca.mcmaster.hypercube_subtraction_v2.Constants.*; 
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.BranchingStatictics_logging_Interval_minutes;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.LOGGING_LEVEL;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.RAMP_UP_FOR_THIS_MANY_MINUTES;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_ABSORB_AND_MERGE;
 import ca.mcmaster.hypercube_subtraction_v2.TestDriver;
 import ca.mcmaster.hypercube_subtraction_v2.collection.*; 
 import ca.mcmaster.hypercube_subtraction_v2.common.*;
@@ -14,17 +17,23 @@ import ca.mcmaster.hypercube_subtraction_v2.merge.RectangleMerger;
 import ilog.concert.IloException;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
+import static java.lang.System.exit; 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap; 
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.apache.log4j.RollingFileAppender;
 
 /**
  *
  * @author tamvadss
- */
-import static java.lang.System.exit;
-public class BranchHandler  extends BaseBranchCallback{ 
+ */ 
+public class HypercubeBranchCallback  extends BaseBranchCallback{ 
     
     private BranchingVariableSuggestor branchingVarSuggestor = new BranchingVariableSuggestor();
     private Map<String, IloNumVar> modelVariables = new TreeMap<>();
@@ -32,14 +41,30 @@ public class BranchHandler  extends BaseBranchCallback{
     private double[ ][] bounds ;
     private IloNumVar[][] vars;
     private IloCplex.BranchDirection[ ][]  dirs;
-    
-    private  boolean isRampUpComplete = false;
      
-    public BranchHandler (IloNumVar[] variables) {
+    private boolean isRampupComplete = false;
+
+    private static Logger logger=Logger.getLogger(HypercubeBranchCallback.class);
+    static {
+        logger.setLevel(LOGGING_LEVEL);
+        PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
+        try {
+            RollingFileAppender appender = new  RollingFileAppender(layout,LOG_FOLDER+HypercubeBranchCallback.class.getSimpleName()+ LOG_FILE_EXTENSION);
+            appender.setMaxBackupIndex(SIXTY);
+            logger.addAppender(appender);
+            logger.setAdditivity(false);
+        } catch (Exception ex) {
+            ///
+            System.err.println("Exit: unable to initialize logging"+ex);       
+            exit(ONE);
+        }
+    } 
+    
+    public HypercubeBranchCallback (IloNumVar[] variables) {
         for (IloNumVar var : variables) {
             modelVariables.put (var.getName(), var);
         }
-       
+        solutionStartTime = Instant.now();
         
     }
 
@@ -49,6 +74,21 @@ public class BranchHandler  extends BaseBranchCallback{
         if ( getNbranches()> ZERO ){  
             
             totalNumberOFBranches+=getNbranches();
+            double timeSinceLastLog = Duration.between(  solutionStartTime, Instant.now()).toMillis();
+            if (BranchingStatictics_logging_Interval_minutes * SIXTY*THOUSAND< timeSinceLastLog) {
+                //log useful info
+                logger.info( "best bound is " + getBestObjValue());
+                logger.info ("number of leafs is " + getNremainingNodes64());
+                try {
+                    logger.info ("best known feasible solution is " +  getIncumbentObjValue()) ;
+                    //exception will not be thrown, in case of no solution big value is returned.
+                } catch (Exception ex) {
+                    logger.info("no solution as of yet");
+                }
+
+                //reset 
+                solutionStartTime = Instant.now();
+            }
             
             //take cplex default branching after ramp up
             
@@ -65,34 +105,58 @@ public class BranchHandler  extends BaseBranchCallback{
             
             NodePayload nodeData = (NodePayload) getNodeData();
             double lpEstimate = getObjValue();
-            
-            boolean wasRampupComplete = isRampUpComplete;
-            isRampUpComplete=    isRampUpComplete || ( getNremainingNodes64()> RAMP_UP_TO_THIS_MANY_LEAFS);
-            
-            if (!wasRampupComplete && isRampUpComplete) {
-                System.out.println("RAMP UP PHASE IS OVER") ;
+                        
+            boolean wasRampUpComplete = isRampupComplete;           
+            isRampupComplete =  isRampupComplete ||
+                                        (   (null!= rampupStartTime ) && 
+                                           (Duration.between(  rampupStartTime, Instant.now()).toMillis()>   RAMP_UP_FOR_THIS_MANY_MINUTES*SIXTY*THOUSAND) 
+                                         );
+            if (!wasRampUpComplete && isRampupComplete) {
+                this.numLeafsAfterRampup = getNremainingNodes64();
+                logger.info("ramp up complete at "+Instant.now().toString()) ;
+                logger.info ("numLeafsAfterRampup "+numLeafsAfterRampup) ;
+                logger.info( " num leafs branched with our method is " + numLeafsBranchedWithOurMethod);
+                
             }
+            
             
             if (isMipRoot) {
                 //get all hypercubes
-                LeafNode thisLeaf = new LeafNode ( nodeData.zeroFixedVars , nodeData.oneFixedVars) ; 
-                RectangleCollector collector =   new RectangleCollector(thisLeaf);
+                logger.info("GET ALL HYPERCUBES start ...") ;
+                Instant timeStartHypercubeCollection = Instant.now();
+                 
+                RectangleCollector collector =   new RectangleCollector( );   
                 nodeData.hypercubesList = new ArrayList<Rectangle>();
                 for ( LowerBoundConstraint lbc :  TestDriver.mipConstraintList){
-                                
-                    List<Rectangle> hyperCubes = collector.collect_INFeasibleHyperCubes(lbc);
-                    //logger.debug ("biggest infes rect for " +lbc  + " is " + hyperCube); 
-                    nodeData.hypercubesList.addAll(hyperCubes);
+                    collector.reset();
+                    collector.collect_INFeasibleHyperCubes(lbc);
+                    nodeData.hypercubesList.addAll(collector.collectedHypercubes);   
+                    logger.info ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size() );
                 }
                 
-                //merge and absorb hypercubes
-                RectangleMerger merger = new RectangleMerger (nodeData.hypercubesList) ;
-                nodeData.hypercubesList= merger.absorbAndMerge() ;
-                
-                if( merger.isMIP_Infeasible) {
-                    System.out.println("MIP is unfeasible; no need for branching") ;
-                    exit(ZERO);
+                if (USE_ABSORB_AND_MERGE){
+                    //merge and absorb hypercubes
+                    logger.info("merge and absorb start ...") ;
+                    RectangleMerger merger = new RectangleMerger (nodeData.hypercubesList) ;
+                    nodeData.hypercubesList= merger.absorbAndMerge() ;
+                    logger.info("merge and absorb completed ! ") ;
+                    for (Rectangle rect : nodeData.hypercubesList) {
+                        logger.debug(rect.printMe(""));
+                    }
+
+                    if( merger.isMIP_Infeasible) {
+                        System.out.println("MIP is unfeasible; no need for branching") ;
+                        exit(ZERO);
+                    }
                 }
+                 
+                this.timeTakenForHypercubeCollection_seconds =  
+                        ( DOUBLE_ZERO+ Duration.between( timeStartHypercubeCollection, Instant.now()).toMillis() ) / (THOUSAND) ;
+                
+                //ramp up starts now
+                this.rampupStartTime= Instant.now();
+                logger.info("hypercubes colletced and rampup starting at " + rampupStartTime );
+                
                         
             } else {
                 //use cplex default branching, or use hyper cubes got from parent
@@ -105,7 +169,7 @@ public class BranchHandler  extends BaseBranchCallback{
             dirs = new  IloCplex.BranchDirection[ TWO][];
              
             //get branching var suggestion from hypercube list, if available
-            if (null !=nodeData && !  isRampUpComplete) {   
+            if (null !=nodeData && nodeData.hypercubesList.size()>ZERO  && !isRampupComplete ) {   
                 List<String> suggestedBranchingVars=new ArrayList<String>();
                 
                 List<String> excludedVars=new ArrayList<String>();
@@ -128,6 +192,8 @@ public class BranchHandler  extends BaseBranchCallback{
                 //create both kids
                 makeBranch( vars[ZERO],  bounds[ZERO],dirs[ZERO],  lpEstimate  ,  zeroChild_payload );
                 makeBranch( vars[ONE],  bounds[ONE],dirs[ONE],   lpEstimate, oneChild_payload  );
+                
+                numLeafsBranchedWithOurMethod++;
 
             }else {
                                 

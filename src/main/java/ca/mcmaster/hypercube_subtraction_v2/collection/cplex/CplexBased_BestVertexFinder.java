@@ -63,12 +63,17 @@ public class CplexBased_BestVertexFinder {
         addVarFixing(oneFixedVariables, ONE) ;
         
         cplex.use (new IncumbentHandler(variables, reducedConstraint)) ;
+        cplex.use (new BranchingAssistorCallback(variables, reducedConstraint)) ;
         
-        //it seems incumbent callback is not invoked unless we disable presolve, for easy MIPs
+        //it seems incumbent callback is not invoked unless we disable presolve etc., for easy MIPs
         cplex.setParam(IloCplex.Param.Emphasis.MIP, BestBound);
         cplex.setParam( IloCplex.Param.MIP.Strategy.HeuristicFreq , -ONE);
         cplex.setParam(IloCplex.Param.MIP.Limits.CutPasses, -ONE);
         cplex.setParam(IloCplex.Param.Preprocessing.Presolve, false); 
+        
+        cplex.setParam(IloCplex.IntParam.Reduce, ZERO);
+        
+        //cplex.exportModel("F:\\temporary files here\\test.lp");
     }
     
     
@@ -81,7 +86,8 @@ public class CplexBased_BestVertexFinder {
         
         //minimize
         cplex.solve();
-        retval= cplex.getStatus().equals(IloCplex.Status.Optimal);
+        IloCplex.Status cplexStatus = cplex.getStatus();
+        retval= cplexStatus.equals( IloCplex.Status.Optimal) || cplexStatus.equals(IloCplex.Status.Feasible);
         
         if (retval){
             double[]  values = cplex.getValues(variables);
