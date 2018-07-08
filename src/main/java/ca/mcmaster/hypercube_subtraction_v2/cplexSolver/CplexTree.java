@@ -13,6 +13,7 @@ import static ca.mcmaster.hypercube_subtraction_v2.Parameters.TOTAL_SOLUTION_TIM
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_PURE_CPLEX;
 import ilog.concert.IloException;
 import ilog.concert.IloLPMatrix;
+import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;  
 import static java.lang.System.exit;
 import org.apache.log4j.Level;
@@ -80,6 +81,11 @@ public class CplexTree {
         logger.info ("best bound is " + cplex.getBestObjValue()) ;
         try {
             logger.info ("best known solution is " + cplex.getObjValue()) ;
+            IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
+            IloNumVar[] variables   =lpMatrix.getNumVars();
+            for (IloNumVar var :  variables) {
+                 logger.info ("var is " + var.getName() + " and is soln value is " + cplex.getValue(var)) ;
+            }
         }catch (Exception ex) {
             logger.warn(ex) ;
             logger.info ("no known solution  "  ) ;
