@@ -8,7 +8,7 @@ package ca.mcmaster.hypercube_subtraction_v2.collection;
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*;  
 import ca.mcmaster.hypercube_subtraction_v2.common.*;
-import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.HypercubeBranchCallback;
+import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.HypercubeRampupCallback;
 import ilog.concert.IloException;
 import static java.lang.System.exit;
 import java.util.*;
