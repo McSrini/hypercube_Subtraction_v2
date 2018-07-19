@@ -161,6 +161,9 @@ public class RectangleCollector {
             Rectangle wholeRect =  new Rectangle (job.zeroFixedVariables,  job.oneFixedVariables) ;
             this.addCollectedHypercube( wholeRect );
             logger.debug("Collected full hypercube "+wholeRect.printMe(lbc.name)) ;
+        } else if (reducedConstraint.isGauranteed_INFeasible(! USE_STRICT_INEQUALITY_IN_MIP)){
+            //discard the job , actually this clause will never happen as we do not insert infeasible jobs
+            logger.debug("Discard job "+job.printMe( lbc.name)) ;
         } else {
             
             //flip vars to collect the best hypercube and generate pending jobs
@@ -202,8 +205,13 @@ public class RectangleCollector {
             
             List<Rectangle> newJobs = createMoreJobs  (job,  indexOfVarsWhichCanBeFree , reducedConstraint) ;
             for (Rectangle newJob : newJobs){
-                this.addPendingJob(newJob  );
-                logger.debug("add pending job "+newJob.printMe(lbc.name));
+                //add pending job unless its unfeasible to the reduced (i.e. complimentary) constraint
+                boolean isGauranteedUnfeasible = ( new UpperBoundConstraint( lbc.getReducedConstraint( newJob.zeroFixedVariables, newJob .oneFixedVariables)))
+                                                 .isGauranteed_INFeasible(! USE_STRICT_INEQUALITY_IN_MIP );
+                if (!isGauranteedUnfeasible) {
+                   this.addPendingJob(newJob  );
+                   logger.debug("add pending job "+newJob.printMe(lbc.name)); 
+                }                                        
             }
             
         }//end else        
