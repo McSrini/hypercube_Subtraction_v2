@@ -22,6 +22,7 @@ import ilog.concert.IloLPMatrix;
 import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;  
 import ilog.cplex.IloCplex.BranchCallback;
+import static ilog.cplex.IloCplex.IncumbentId;
 import ilog.cplex.IloCplex.Status;
 import static java.lang.System.exit;
 import java.util.List;
@@ -73,6 +74,7 @@ public class CplexTree {
     public void rampUp (int durationSeconds, boolean useHypercubes , List<Rectangle> infeasibleHypercubesList ) throws IloException{
         
         logger.info("Ramp up started");
+        cplex.clearCallbacks();
         cplex.use(  new EmptyBranchCallback());  
         if (useHypercubes){
             IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
@@ -99,16 +101,13 @@ public class CplexTree {
        
         cplex.setParam( IloCplex.Param.TimeLimit,  durationSeconds);
         //use cplex default branching
+        cplex.clearCallbacks();
         cplex.use (new EmptyBranchCallback());
         cplex.setParam( IloCplex.Param.Threads, MAX_THREADS);
         cplex.solve();
         if (cplex.getStatus().equals(Status.Optimal)){
             //print solution
-            logger.info ("best known solution is " + cplex.getObjValue()) ;
-            IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
-            for (IloNumVar var :  lpMatrix.getNumVars()) {            
-                 logger.info ("var is " + var.getName() + " and is soln value is " + cplex.getValue(var)) ;
-            }
+            this.printSolution();
         }else if (cplex.getStatus().equals(Status.Infeasible)) {
             logger.info("MIP is infeasible" );
         }else {
@@ -119,9 +118,23 @@ public class CplexTree {
         return isCompletelySolved;
     }
     
+    public Status getStatus () throws IloException {
+        return cplex.getStatus();
+    }
+    
+    public void printSolution () throws IloException {
+        logger.info ("best known solution is " + cplex.getObjValue()) ;
+        logger.info ("status is " + cplex.getStatus()) ;
+        IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
+        for (IloNumVar var :  lpMatrix.getNumVars()) {            
+             logger.info ("var is " + var.getName() + " and is soln value is " + cplex.getValue(var, IncumbentId )) ;
+        }
+    }
+    
     private void printStatictics (String header) throws IloException {
         //print stats
         StaticticsBranchCallback statisticsCallback =new StaticticsBranchCallback();
+        //cplex.clearCallbacks(); keep the in use branch callback if CPLEX wants to branch something before entering the node callback
         cplex.use(statisticsCallback );  
         //always set thread count to 1 before collecting statistics
         cplex.setParam( IloCplex.Param.Threads, ONE);

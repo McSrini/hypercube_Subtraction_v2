@@ -14,6 +14,7 @@ import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.CplexTree;
 import ca.mcmaster.hypercube_subtraction_v2.merge.RectangleMerger;
 import ca.mcmaster.hypercube_subtraction_v2.utils.MIP_Reader;
 import ilog.cplex.IloCplex;
+import ilog.cplex.IloCplex.Status;
 import static java.lang.System.exit;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,14 @@ public class TestDriver {
             allVariablesInModel = MIP_Reader.getVariables(mip) ;
             objective= MIP_Reader.getObjective(mip);            
             mipConstraintList= MIP_Reader.getConstraints(mip);
+            
+            //check that every var appears in the objective 
+            for (String var :allVariablesInModel){
+                if (ZERO==objective.getObjectiveCoeff(var)) {
+                    System.err.println("Variable "+ var + " does not occur in the objective.");
+                    exit(ONE);
+                }
+            }
 
             logger.info ("Collected objective and constraints. Dumping parameters:" ) ;
             logger.info("MIP_FILENAME "+ MIP_FILENAME) ;
@@ -70,6 +79,7 @@ public class TestDriver {
             logger.info("MIP_EMPHASIS "+MIP_EMPHASIS) ;
             logger.info("USE_PURE_CPLEX "+USE_PURE_CPLEX) ;
             logger.info("USE_ABSORB_AND_MERGE "+USE_ABSORB_AND_MERGE) ;
+            logger.info("USE_ABSORB_AND_MERGE_CUMULATIVE "+USE_ABSORB_AND_MERGE_CUMULATIVE) ;
             logger.info("SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS "+SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS );
             logger.info("TOTAL_SOLUTION_ITERATIONS "+TOTAL_SOLUTION_ITERATIONS);
             
@@ -88,32 +98,36 @@ public class TestDriver {
                 for ( LowerBoundConstraint lbc :  TestDriver.mipConstraintList){
                     collector.reset();
                     collector.collect_INFeasibleHyperCubes(lbc);
+                    
+                    if (USE_ABSORB_AND_MERGE && collector.collectedHypercubes.size()>ZERO){                        
+                        collector.collectedHypercubes = mergeAndAbsorb(collector.collectedHypercubes );
+                    }
+                    
                     infeasibleHypercubesList.addAll(collector.collectedHypercubes);   
-                    logger.info ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size() );
+                    
+                    logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size() );
                 }
                 
-                if (USE_ABSORB_AND_MERGE){
-                    //merge and absorb hypercubes
-                    logger.info("merge and absorb start ...") ;
-                    RectangleMerger merger = new RectangleMerger (infeasibleHypercubesList) ;
-                    infeasibleHypercubesList= merger.absorbAndMerge() ;
-                    logger.info("merge and absorb completed ! ") ;
-                    
-                    if( merger.isMIP_Infeasible) {
-                        System.out.println("MIP is unfeasible; no need for branching") ;
-                        exit(ZERO);
-                    }                     
-                }//end if USE_ABSORB_AND_MERGE
-                
+                if (USE_ABSORB_AND_MERGE_CUMULATIVE && infeasibleHypercubesList.size()>ZERO) {
+                    logger.info("Start cumulative merge absorb ") ;
+                    infeasibleHypercubesList = mergeAndAbsorb(infeasibleHypercubesList );
+                }
+                 
                 logger.info("end hypercube collection. Collected this many "+infeasibleHypercubesList.size() );
                 print_Largest_and_Smallest_BestVertexValue(infeasibleHypercubesList);
             }
             
             CplexTree cplexRefTree = new CplexTree () ;
             cplexRefTree.rampUp(RAMP_UP_FOR_THIS_MANY_MINUTES*SIXTY, !USE_PURE_CPLEX,infeasibleHypercubesList  );
+            boolean isCompletelySolved = false;
             for (int solutionIteration = ONE; solutionIteration<= TOTAL_SOLUTION_ITERATIONS; solutionIteration++) {
-                boolean isCompletelySolved = cplexRefTree.solveForDuration( SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY  ,solutionIteration );
+                isCompletelySolved = cplexRefTree.solveForDuration( SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY  ,solutionIteration );
                 if (isCompletelySolved)  break;
+            }
+            if (!isCompletelySolved && cplexRefTree.getStatus().equals(Status.Feasible)){
+                //print best known solution
+                logger.info("not fully solved to optimality in the time available, but feasible") ;
+                cplexRefTree.printSolution();
             }
             logger.info("Done !" );
              
@@ -139,6 +153,22 @@ public class TestDriver {
         }
         logger.info ( " largest best vertex value is "+ largest);
         logger.info ( " smallest best vertex value is "+ smallest);
+    }
+    
+    private static  List<Rectangle> mergeAndAbsorb ( List<Rectangle> incomingList) {
+        List<Rectangle> result = null;
+         
+        //merge and absorb hypercubes
+        logger.info("merge and absorb start ...") ;
+        RectangleMerger merger = new RectangleMerger (incomingList) ;
+        result= merger.absorbAndMerge() ;
+        logger.info("merge and absorb completed ! ") ;
+
+        if( merger.isMIP_Infeasible) {
+            System.out.println("MIP is unfeasible; no need for branching") ;
+            exit(ZERO);
+        }         
+        return result;
     }
     
 }

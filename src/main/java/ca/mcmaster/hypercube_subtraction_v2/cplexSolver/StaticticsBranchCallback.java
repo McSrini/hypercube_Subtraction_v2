@@ -27,7 +27,7 @@ import org.apache.log4j.RollingFileAppender;
  *
  * @author tamvadss
  */
-public   class StaticticsBranchCallback extends IloCplex.BranchCallback{ 
+public   class StaticticsBranchCallback extends IloCplex.NodeCallback{ 
 
     //for statistics   
     public long numberOFLeafs = ZERO;
