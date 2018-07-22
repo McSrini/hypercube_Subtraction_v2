@@ -26,6 +26,7 @@ public class RectangleMerger {
     
     //key is # of fixed vars
     private TreeMap<Integer, List<Rectangle>> rectangleMap = new TreeMap<Integer, List<Rectangle>>();
+    private List<Rectangle> incomingRectangles;
     
     public boolean isMIP_Infeasible = false;
     
@@ -46,25 +47,33 @@ public class RectangleMerger {
         }
     } 
     
-    public RectangleMerger (List<Rectangle> rects) {
-        for (Rectangle rect : rects){
+    public RectangleMerger ( List<Rectangle> initialRectangles, List<Rectangle> incomingRectangles) {
+        
+        List<Rectangle>  allRects = new ArrayList<Rectangle> ();
+        allRects.addAll(initialRectangles );
+        allRects.addAll(incomingRectangles );
+        
+        for (Rectangle rect : allRects){
             List<Rectangle> current = this.rectangleMap.get(rect.getSize());
             if (null==current) current = new ArrayList<Rectangle>();
             current.add(rect );
             this.rectangleMap.put( rect.getSize(), current);
         }
+        
+        this.incomingRectangles = incomingRectangles ;
+        
     }
     
     public List<Rectangle> absorbAndMerge (){
         
-        
-        logger.info("num of infeasible cubes collected before absorb "+ this.getNumberOFRectsInMap()) ;
-        int countAbsorbed=this.absorb();
-        logger.info("num of infeasible cubes collected  after absorb"+ this.getNumberOFRectsInMap()) ;
+        logger.debug("num of infeasible cubes collected before absorb "+ this.getNumberOFRectsInMap()) ;
+        int countAbsorbed=this.absorb(   );
+        logger.debug("num of infeasible cubes collected  after absorb"+ this.getNumberOFRectsInMap());
+        if (countAbsorbed>ZERO) logger.info ( " and count absorbed "+ countAbsorbed) ;
 
-        int countMerged =this.merge();
-        logger.info("num of infeasible cubes collected after merge  "+ this.getNumberOFRectsInMap()) ;
-
+        int countMerged =this.merge(   );
+        logger.debug("num of infeasible cubes collected after merge  "+ this.getNumberOFRectsInMap()  ) ;
+        if (countMerged>ZERO) logger.info ( " and count countMerged "+ countMerged) ;
         
         List<Rectangle> result = new ArrayList<Rectangle> ();
         for ( List<Rectangle> rectList : this.rectangleMap.values()) {
@@ -73,8 +82,9 @@ public class RectangleMerger {
         return result;
     }
     
-    //absorb rects into other rects in the MAP
-    private int absorb () {
+    
+    //absorb newly added rects  
+    private int absorb (   ) {
         
         int countAbsorbed = ZERO;
         
@@ -90,12 +100,19 @@ public class RectangleMerger {
             List<Rectangle> newRectanglesAtCurrentDepth = new ArrayList<Rectangle> ();
             //check is any of the higher level rects will absorb these rects, if no then retain else ignore(i.e. discard)
             for (Rectangle rect : rectanglesAtCurrentDepth){
-                logger.debug("check if rect will be absorbed "+ rect.printMe("")) ;
-                if (!isAbsorbed(rect)) {
+                
+                //only try to absorb new rects, let the old ones sit there
+                if ( incomingRectangles.contains(rect))  {
+                    logger.debug("check if rect will be absorbed "+ rect.printMe("")) ;
+                    if (!isAbsorbed(rect)) {
+                        newRectanglesAtCurrentDepth.add(rect);
+                    } else {
+                        countAbsorbed++;
+                    }
+                }else {
                     newRectanglesAtCurrentDepth.add(rect);
-                } else {
-                    countAbsorbed++;
                 }
+                
             }
             if (newRectanglesAtCurrentDepth.size()>ZERO) this.rectangleMap.put( currentDepth, newRectanglesAtCurrentDepth );
         }
@@ -114,11 +131,11 @@ public class RectangleMerger {
             //does any rect at this depth absorb the current rect ?
             if (this.rectangleMap.get( depth)==null) continue;
             for ( Rectangle rect: this.rectangleMap.get( depth)){
-               if (rect.isAbsorbed( currentRect))   {
+                if (rect.isAbsorbed( currentRect))   {
                    result = true;
                    logger.debug (currentRect.printMe( "") + " absorbed into " +rect.printMe("") ) ;
                    break;
-               }
+                }
             }
             
             if (result) break;
@@ -127,8 +144,8 @@ public class RectangleMerger {
         return result;
     }
     
-    //merge rects with other rects in map that have 1 complimentary variable
-    private int merge () {
+    //merge newRectangles with other rects (if any) in map that have 1 complimentary variable
+    private int merge ( ) {
         
         int countMerged = ZERO;
        
@@ -141,7 +158,7 @@ public class RectangleMerger {
             List<Rectangle> rectanglesAtCurrentDepth = this.rectangleMap.remove(currentDepth );
             if (null==rectanglesAtCurrentDepth) continue;
             
-            logger.info("current depth for merge is "+ currentDepth);
+            logger.debug("current depth for merge is "+ currentDepth);
             
             
             //check if any of the rects at the current depth differ in 
@@ -150,6 +167,7 @@ public class RectangleMerger {
             List<Rectangle> rectanglesToBeRemovedFromThisDepth = new ArrayList<Rectangle> ();
             for (Rectangle rectOne: rectanglesAtCurrentDepth) {
                 
+                if (!incomingRectangles.contains(rectOne )) continue ;
                 logger.debug("trying to merge "+rectOne.printMe(""));
                 
                 if (rectanglesToBeRemovedFromThisDepth.contains( rectOne)) continue;
@@ -182,9 +200,8 @@ public class RectangleMerger {
                     //remove both this rect and its compliment
                     rectanglesToBeRemovedFromThisDepth.add(rectOne) ;
                     rectanglesToBeRemovedFromThisDepth.add(complimentaryRect) ;
-                }
-                
-            }
+                }                
+            }//end for rectOne
             
             List<Rectangle> newRectsAtThisDepth = new ArrayList<Rectangle> ();
             for (Rectangle rect : rectanglesAtCurrentDepth) {

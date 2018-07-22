@@ -74,12 +74,11 @@ public class TestDriver {
             //public static final String MIP_FILENAME = "nvmxnnmnm,mncmn , ,mnmvc,vmcnishani.mps";
             logger.info("HYPERCUBE_COLLECTION_LP_THRESHOLD "+ HYPERCUBE_COLLECTION_LP_THRESHOLD) ;
             logger.info("HYPERCUBE_COLLECTION_COUNT_THRESHOLD "+ HYPERCUBE_COLLECTION_COUNT_THRESHOLD) ;
-            logger.info("RAMP_UP_FOR_THIS_MANY_MINUTES "+RAMP_UP_FOR_THIS_MANY_MINUTES) ;  
+            logger.info("RAMP_UP_FOR_THIS_MANY_MINUTES "+RAMP_UP_FOR_THIS_MANY_HOURS) ;  
             logger.info("USE_STRICT_INEQUALITY_IN_MIP "+USE_STRICT_INEQUALITY_IN_MIP) ; 
             logger.info("MIP_EMPHASIS "+MIP_EMPHASIS) ;
             logger.info("USE_PURE_CPLEX "+USE_PURE_CPLEX) ;
-            logger.info("USE_ABSORB_AND_MERGE "+USE_ABSORB_AND_MERGE) ;
-            logger.info("USE_ABSORB_AND_MERGE_CUMULATIVE "+USE_ABSORB_AND_MERGE_CUMULATIVE) ;
+            logger.info("USE_ABSORB_AND_MERGE "+USE_MERGE_AND_ABSORB) ; 
             logger.info("SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS "+SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS );
             logger.info("TOTAL_SOLUTION_ITERATIONS "+TOTAL_SOLUTION_ITERATIONS);
             
@@ -99,26 +98,22 @@ public class TestDriver {
                     collector.reset();
                     collector.collect_INFeasibleHyperCubes(lbc);
                     
-                    if (USE_ABSORB_AND_MERGE && collector.collectedHypercubes.size()>ZERO){                        
-                        collector.collectedHypercubes = mergeAndAbsorb(collector.collectedHypercubes );
+                    if (USE_MERGE_AND_ABSORB && collector.collectedHypercubes.size()>ZERO){   
+                       infeasibleHypercubesList = mergeAndAbsorb (   infeasibleHypercubesList, collector.collectedHypercubes);                        
+                    } else {
+                       infeasibleHypercubesList .addAll(collector.collectedHypercubes);   
                     }
-                    
-                    infeasibleHypercubesList.addAll(collector.collectedHypercubes);   
-                    
-                    logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size() );
+                                        
+                    logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size()
+                    + " and infeasibleHypercubesList size "+infeasibleHypercubesList.size());
                 }
-                
-                if (USE_ABSORB_AND_MERGE_CUMULATIVE && infeasibleHypercubesList.size()>ZERO) {
-                    logger.info("Start cumulative merge absorb ") ;
-                    infeasibleHypercubesList = mergeAndAbsorb(infeasibleHypercubesList );
-                }
-                 
+                                
                 logger.info("end hypercube collection. Collected this many "+infeasibleHypercubesList.size() );
                 print_Largest_and_Smallest_BestVertexValue(infeasibleHypercubesList);
             }
             
             CplexTree cplexRefTree = new CplexTree () ;
-            cplexRefTree.rampUp(RAMP_UP_FOR_THIS_MANY_MINUTES*SIXTY, !USE_PURE_CPLEX,infeasibleHypercubesList  );
+            cplexRefTree.rampUp(RAMP_UP_FOR_THIS_MANY_HOURS, !USE_PURE_CPLEX,infeasibleHypercubesList  );
             boolean isCompletelySolved = false;
             for (int solutionIteration = ONE; solutionIteration<= TOTAL_SOLUTION_ITERATIONS; solutionIteration++) {
                 isCompletelySolved = cplexRefTree.solveForDuration( SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY  ,solutionIteration );
@@ -155,14 +150,14 @@ public class TestDriver {
         logger.info ( " smallest best vertex value is "+ smallest);
     }
     
-    private static  List<Rectangle> mergeAndAbsorb ( List<Rectangle> incomingList) {
+    private static  List<Rectangle> mergeAndAbsorb ( List<Rectangle> existingList, List<Rectangle> incomingList) {
         List<Rectangle> result = null;
          
         //merge and absorb hypercubes
-        logger.info("merge and absorb start ...") ;
-        RectangleMerger merger = new RectangleMerger (incomingList) ;
-        result= merger.absorbAndMerge() ;
-        logger.info("merge and absorb completed ! ") ;
+        //logger.info("merge and absorb start ...") ;
+        RectangleMerger merger = new RectangleMerger (existingList, incomingList) ;
+        result= merger.absorbAndMerge( ) ;
+        //logger.info("merge and absorb completed ! ") ;
 
         if( merger.isMIP_Infeasible) {
             System.out.println("MIP is unfeasible; no need for branching") ;

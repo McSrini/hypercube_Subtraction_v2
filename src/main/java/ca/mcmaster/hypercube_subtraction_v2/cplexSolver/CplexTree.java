@@ -15,6 +15,7 @@ import static ca.mcmaster.hypercube_subtraction_v2.Parameters.LOGGING_LEVEL;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MAX_THREADS;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MIP_EMPHASIS;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.MIP_FILENAME;  
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_PURE_CPLEX;
 import ca.mcmaster.hypercube_subtraction_v2.collection.Rectangle;
 import ilog.concert.IloException;
@@ -38,7 +39,7 @@ import org.apache.log4j.RollingFileAppender;
 public class CplexTree {
     
     private IloCplex cplex ;
-    private HypercubeRampupCallback rampUpCallback ;
+    private HypercubeRampupCallback rampUpCallback =null;
         
     private static Logger logger=Logger.getLogger(CplexTree.class);
     static {
@@ -71,22 +72,28 @@ public class CplexTree {
     }
     
     //ramp up is always single threaded
-    public void rampUp (int durationSeconds, boolean useHypercubes , List<Rectangle> infeasibleHypercubesList ) throws IloException{
+    public void rampUp (int howManyHours, boolean useHypercubes , List<Rectangle> infeasibleHypercubesList ) throws IloException{
         
         logger.info("Ramp up started");
-        cplex.clearCallbacks();
-        cplex.use(  new EmptyBranchCallback());  
+                  
         if (useHypercubes){
             IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
-            this.rampUpCallback= new HypercubeRampupCallback  ( lpMatrix.getNumVars(), infeasibleHypercubesList) ;
-            cplex.use (rampUpCallback);
+            this.rampUpCallback= new HypercubeRampupCallback  ( lpMatrix.getNumVars(), infeasibleHypercubesList) ;            
         }
-                
-        cplex.setParam( IloCplex.Param.Threads, ONE);
-        cplex.setParam( IloCplex.Param.TimeLimit,  durationSeconds);
-        cplex.solve();
         
-        printStatictics("Ramp up complete");
+        for (int iteration=howManyHours;iteration>ZERO;iteration--) {
+            
+            cplex.clearCallbacks();
+            cplex.use(  new EmptyBranchCallback()); 
+            if (null!=rampUpCallback)         cplex.use (rampUpCallback);    
+            
+            cplex.setParam( IloCplex.Param.Threads, useHypercubes? ONE:MAX_THREADS);
+            cplex.setParam( IloCplex.Param.TimeLimit,   SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY);
+            cplex.solve();        
+            printStatictics("Ramp up iteration " + (howManyHours-iteration+ONE)+ " complete ");
+        }
+        
+        
         if (useHypercubes){
             logger.info( "Number of branches made during ramp up using the hypercubes method " + this.rampUpCallback.totalNumberOFBranches);
         }
