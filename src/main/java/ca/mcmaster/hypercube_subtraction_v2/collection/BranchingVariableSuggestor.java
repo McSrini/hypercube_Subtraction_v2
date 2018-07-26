@@ -24,22 +24,22 @@ public class BranchingVariableSuggestor {
         
     }
     
-    public List<String> getBranchingVar (List<Rectangle> rects, List<String> excludedVars) {
+    public List<String> getBranchingVar (Collection<Rectangle> rects, List<String> excludedVars) {
         
         this.initializeMap(rects,excludedVars);
         
         List<String> result = new ArrayList<String> ();
-        int maxFreq = Collections.max(frequencyMap.values());
+        int maxFreq = Collections.max(frequencyMap.values()); 
         for (Entry<String, Integer> entry : this.frequencyMap.entrySet()){
             if (entry.getValue()==maxFreq){
                 result.add (entry.getKey());
             }
         }
-        
+               
         return result;
     }
     
-    private void initializeMap (List<Rectangle> rects,List<String> excludedVars){
+    private void initializeMap (Collection<Rectangle> rects,List<String> excludedVars){
         
         this.frequencyMap.clear();
         

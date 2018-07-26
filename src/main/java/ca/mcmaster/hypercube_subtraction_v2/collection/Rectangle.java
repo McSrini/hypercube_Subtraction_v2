@@ -285,5 +285,30 @@ public class Rectangle {
          
         return objectiveValueAtBestUnconstrainedVertex;
     }
+    
+    //vertex with max value for minimization MIP
+    /*
+    public Double find_unconstrained_worstVertex() {
+    
+        double  result = ZERO;
+    
+        for (VariableCoefficientTuple tuple : TestDriver.objective.objectiveExpr){
+            String thisVar = tuple.varName;
+            if (this.zeroFixedVariables.contains(thisVar) || this.oneFixedVariables.contains(thisVar )) {
+                //already fixed, do nothing
+                if (this.oneFixedVariables.contains(thisVar ))result +=tuple.coeff;
+            }else {
+                //choose fixing so that objective becomes largest possible
+                if (tuple.coeff < ZERO){
+                    //0 fix     
+                }else {
+                    //one fix
+                    result +=tuple.coeff;
+                }
+            }
+        }
         
+        return result;
+    }
+    */ 
 }

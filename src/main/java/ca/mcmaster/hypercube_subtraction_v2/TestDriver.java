@@ -7,14 +7,18 @@ package ca.mcmaster.hypercube_subtraction_v2;
 
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*; 
+import ca.mcmaster.hypercube_subtraction_v2.collection.BranchingVariableSuggestor;
 import ca.mcmaster.hypercube_subtraction_v2.collection.Rectangle;
 import ca.mcmaster.hypercube_subtraction_v2.collection.RectangleCollector;
 import ca.mcmaster.hypercube_subtraction_v2.common.*;
 import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.CplexTree;
+import ca.mcmaster.hypercube_subtraction_v2.hueristicSolvers.CplexBasedValidator;
+import ca.mcmaster.hypercube_subtraction_v2.hueristicSolvers.Ramos3;
 import ca.mcmaster.hypercube_subtraction_v2.merge.RectangleMerger;
 import ca.mcmaster.hypercube_subtraction_v2.utils.MIP_Reader;
 import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.Status;
+import java.io.File;
 import static java.lang.System.exit;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,11 +66,17 @@ public class TestDriver {
             mipConstraintList= MIP_Reader.getConstraints(mip);
             
             //check that every var appears in the objective 
+            int missingCount = ZERO;
             for (String var :allVariablesInModel){
                 if (ZERO==objective.getObjectiveCoeff(var)) {
-                    System.err.println("Variable "+ var + " does not occur in the objective.");
-                    exit(ONE);
+                    //System.err.println("Variable "+ var + " does not occur in the objective.");
+                    missingCount ++;
+                    //exit(ONE);
                 }
+            }
+            if (missingCount>ZERO) {
+                logger.warn( "Variable count for not occurs in the objective "+missingCount);
+                exit(ONE);
             }
 
             logger.info ("Collected objective and constraints. Dumping parameters:" ) ;
@@ -74,8 +84,9 @@ public class TestDriver {
             //public static final String MIP_FILENAME = "nvmxnnmnm,mncmn , ,mnmvc,vmcnishani.mps";
             logger.info("HYPERCUBE_COLLECTION_LP_THRESHOLD "+ HYPERCUBE_COLLECTION_LP_THRESHOLD) ;
             logger.info("HYPERCUBE_COLLECTION_COUNT_THRESHOLD "+ HYPERCUBE_COLLECTION_COUNT_THRESHOLD) ;
-            logger.info("RAMP_UP_FOR_THIS_MANY_MINUTES "+RAMP_UP_FOR_THIS_MANY_HOURS) ;  
+            logger.info("RAMP_UP_FOR_THIS_MANY_HOURS "+RAMP_UP_FOR_THIS_MANY_HOURS) ;  
             logger.info("USE_STRICT_INEQUALITY_IN_MIP "+USE_STRICT_INEQUALITY_IN_MIP) ; 
+            logger.info("USE_HYPERTHREADED_RAMPUP "+USE_HYPERTHREADED_RAMPUP) ;             
             logger.info("MIP_EMPHASIS "+MIP_EMPHASIS) ;
             logger.info("USE_PURE_CPLEX "+USE_PURE_CPLEX) ;
             logger.info("USE_ABSORB_AND_MERGE "+USE_MERGE_AND_ABSORB) ; 
@@ -94,6 +105,7 @@ public class TestDriver {
                  
                 RectangleCollector collector =   new RectangleCollector( );   
                
+                int index = ZERO;
                 for ( LowerBoundConstraint lbc :  TestDriver.mipConstraintList){
                     collector.reset();
                     collector.collect_INFeasibleHyperCubes(lbc);
@@ -106,11 +118,16 @@ public class TestDriver {
                                         
                     logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size()
                     + " and infeasibleHypercubesList size "+infeasibleHypercubesList.size());
+                    index ++;
+                    if (index%SIXTY==ZERO)        logger.info("Collected for this many constraints "+ index);
                 }
                                 
                 logger.info("end hypercube collection. Collected this many "+infeasibleHypercubesList.size() );
                 print_Largest_and_Smallest_BestVertexValue(infeasibleHypercubesList);
+               
             }
+         
+          
             
             CplexTree cplexRefTree = new CplexTree () ;
             cplexRefTree.rampUp(RAMP_UP_FOR_THIS_MANY_HOURS, !USE_PURE_CPLEX,infeasibleHypercubesList  );
@@ -118,6 +135,11 @@ public class TestDriver {
             for (int solutionIteration = ONE; solutionIteration<= TOTAL_SOLUTION_ITERATIONS; solutionIteration++) {
                 isCompletelySolved = cplexRefTree.solveForDuration( SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY  ,solutionIteration );
                 if (isCompletelySolved)  break;
+                if (isHaltFilePresent()) {
+                    System.out.println("Halt file found...exit.");
+                    logger.warn("Halt file found...exit.");
+                    break;
+                }
             }
             if (!isCompletelySolved && cplexRefTree.getStatus().equals(Status.Feasible)){
                 //print best known solution
@@ -164,6 +186,12 @@ public class TestDriver {
             exit(ZERO);
         }         
         return result;
+    }
+    
+    private static boolean isHaltFilePresent (){
+        File file = new File(HALT_FILE);
+         
+        return file.exists();
     }
     
 }

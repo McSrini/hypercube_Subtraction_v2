@@ -25,49 +25,21 @@ import org.apache.log4j.RollingFileAppender;
 /**
  *
  * @author tamvadss
+ * 
+ * //check with experts if can be used with multiple threads
+ * 
  */ 
-public class HypercubeRampupCallback  extends  BranchCallback{ 
+public class ThreadSafe_HypercubeRampupCallback  extends  HypercubeRampupCallback{ 
     
-    private BranchingVariableSuggestor branchingVarSuggestor = new BranchingVariableSuggestor();
-            
-    private double[ ][] bounds ;
-    private IloNumVar[][] vars;
-    private IloCplex.BranchDirection[ ][]  dirs;
-    
-    protected Map<String, IloNumVar> modelVariables = new TreeMap<>();
-    protected List<Rectangle> infeasibleHypercubesList;
-    
-    public long totalNumberOFBranches=ZERO;
-      
-    private static Logger logger=Logger.getLogger(HypercubeRampupCallback.class);
-    static {
-        logger.setLevel(LOGGING_LEVEL);
-        PatternLayout layout = new PatternLayout("%5p  %d  %F  %L  %m%n");     
-        try {
-            RollingFileAppender appender = new  RollingFileAppender(layout,LOG_FOLDER+HypercubeRampupCallback.class.getSimpleName()+ LOG_FILE_EXTENSION);
-            appender.setMaxBackupIndex(SIXTY);
-            logger.addAppender(appender);
-            logger.setAdditivity(false);
-        } catch (Exception ex) {
-            ///
-            System.err.println("Exit: unable to initialize logging"+ex);       
-            exit(ONE);
-        }
-    } 
-    
-    public HypercubeRampupCallback (IloNumVar[] variables, List<Rectangle> infeasibleHypercubesList) {
-        for (IloNumVar var : variables) {
-            modelVariables.put (var.getName(), var);
-        }
-        this.infeasibleHypercubesList =  infeasibleHypercubesList;
+    public ThreadSafe_HypercubeRampupCallback (IloNumVar[] variables, List<Rectangle> infeasibleHypercubesList) {
+        super(variables,  infeasibleHypercubesList);
     }
 
     //the job of this callback is to pass on the infeasible hypercubes to each child, after deciding what the branching var should be
     protected void main() throws IloException {
         
         if ( getNbranches()> ZERO ){  
-            
-            totalNumberOFBranches+=getNbranches();
+             
              
             boolean isMipRoot = ( getNodeId().toString()).equals( MIP_ROOT_ID);
                        
@@ -86,9 +58,10 @@ public class HypercubeRampupCallback  extends  BranchCallback{
                    
             
             // vars needed for child node creation 
-            vars = new IloNumVar[TWO][] ;
-            bounds = new double[TWO ][];
-            dirs = new  IloCplex.BranchDirection[ TWO][];
+            IloNumVar[][] vars = new IloNumVar[TWO][] ;
+            double[ ][] bounds = new double[TWO ][];
+            IloCplex.BranchDirection[ ][]  dirs = new  IloCplex.BranchDirection[ TWO][];
+            
              
             //get branching var suggestion from hypercube list, if available
             if (null !=nodeData && nodeData.hypercubesList.size()>ZERO    ) {   
@@ -98,14 +71,15 @@ public class HypercubeRampupCallback  extends  BranchCallback{
                 excludedVars.addAll( nodeData.zeroFixedVars);
                 excludedVars.addAll( nodeData.oneFixedVars);
                 
-                suggestedBranchingVars = this.branchingVarSuggestor.getBranchingVar( nodeData.hypercubesList ,  excludedVars);
+                BranchingVariableSuggestor branchingVarSuggestor = new BranchingVariableSuggestor(); 
+                suggestedBranchingVars =  branchingVarSuggestor.getBranchingVar( nodeData.hypercubesList ,  excludedVars);
                 //pick a branching var, and split hypercubes into left and right sections
                 String branchingVariable =  getVarWithLargestObjCoeff( suggestedBranchingVars) ; 
                 List<Rectangle> zeroChild_hypercubesList = new ArrayList<Rectangle> ();
                 List<Rectangle> oneChild_hypercubesList = new ArrayList<Rectangle> ();
                 splitHyperCubes (branchingVariable  ,zeroChild_hypercubesList ,oneChild_hypercubesList, nodeData.hypercubesList) ;
                 
-                getArraysNeededForCplexBranching(branchingVariable);
+                getArraysNeededForCplexBranching(branchingVariable, vars, bounds, dirs);
                 
                 //create node attachments for left and right child  
                 NodePayload zeroChild_payload = getChildPayload (true,  branchingVariable, nodeData, zeroChild_hypercubesList) ;
@@ -146,7 +120,8 @@ public class HypercubeRampupCallback  extends  BranchCallback{
         return payload;
     }
     
-    private void getArraysNeededForCplexBranching (String branchingVar ){
+    private void getArraysNeededForCplexBranching (String branchingVar,IloNumVar[][] vars ,
+                                                   double[ ][] bounds ,IloCplex.BranchDirection[ ][]  dirs ){
         //get var with given name, and create up and down branch conditions
         vars[ZERO] = new IloNumVar[ONE];
         vars[ZERO][ZERO]= this.modelVariables.get(branchingVar );
