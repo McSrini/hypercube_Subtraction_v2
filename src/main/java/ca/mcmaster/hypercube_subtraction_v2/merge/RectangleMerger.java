@@ -103,7 +103,7 @@ public class RectangleMerger {
                 
                 //only try to absorb new rects, let the old ones sit there
                 if ( incomingRectangles.contains(rect))  {
-                    logger.debug("check if rect will be absorbed "+ rect.printMe("")) ;
+                    //logger.debug("check if rect will be absorbed "+ rect.printMe("")) ;
                     if (!isAbsorbed(rect)) {
                         newRectanglesAtCurrentDepth.add(rect);
                     } else {
@@ -133,7 +133,7 @@ public class RectangleMerger {
             for ( Rectangle rect: this.rectangleMap.get( depth)){
                 if (rect.isAbsorbed( currentRect))   {
                    result = true;
-                   logger.debug (currentRect.printMe( "") + " absorbed into " +rect.printMe("") ) ;
+                   //logger.debug (currentRect.printMe( "") + " absorbed into " +rect.printMe("") ) ;
                    break;
                 }
             }
@@ -168,7 +168,7 @@ public class RectangleMerger {
             for (Rectangle rectOne: rectanglesAtCurrentDepth) {
                 
                 if (!incomingRectangles.contains(rectOne )) continue ;
-                logger.debug("trying to merge "+rectOne.printMe(""));
+                //logger.debug("trying to merge "+rectOne.printMe(""));
                 
                 if (rectanglesToBeRemovedFromThisDepth.contains( rectOne)) continue;
                 
@@ -176,7 +176,7 @@ public class RectangleMerger {
                 Rectangle complimentaryRect= null;
                 for (Rectangle rectTwo: rectanglesAtCurrentDepth) {
                     
-                    logger.debug("trying to MATCH with "+rectTwo.printMe(""));
+                    //logger.debug("trying to MATCH with "+rectTwo.printMe(""));
                      
                     Rectangle mergedRect = rectOne.mergeIfComplimentary ( rectTwo);
                     if (null!= mergedRect) {
@@ -189,7 +189,7 @@ public class RectangleMerger {
                         isComplimentFound= true;
                         complimentaryRect= rectTwo;
                         countMerged ++;
-                        logger.debug (rectOne.printMe( "") + " merged with " + rectTwo.printMe( "")) ;
+                        //logger.debug (rectOne.printMe( "") + " merged with " + rectTwo.printMe( "")) ;
                         break;
                     }   
                 }
@@ -227,7 +227,7 @@ public class RectangleMerger {
         for (List<Rectangle> rects :rectangleMap.values()) {
             size+=rects.size();
             for (Rectangle rect: rects){
-                logger.debug (rect.printMe("")) ;
+                //logger.debug (rect.printMe("")) ;
             }
         }
         

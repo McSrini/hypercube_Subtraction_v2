@@ -162,6 +162,7 @@ public class Rectangle {
          
     }
     
+    /*
     public String printMe (String name){
         
         String result=name+"\n"; 
@@ -193,13 +194,50 @@ public class Rectangle {
                 result += str + ",";
             }
             result += " \n  -- constrained best vertex value = "+objectiveValueAtBestVertex_forGivenConstraint;
-        }
-               
+        }              
           
         //System.out.println( "Rectangle is " + result);
         return result;
 
     }
+    */
+    
+    //for the given lbc, find the vertex that violates it the most
+    //return the -ve of the magniture of the violation
+    //return null if not violated
+    //
+    ///use the same three fields for populating the results, as used in findBestVertex
+    public Double findMostViolatedVertex(LowerBoundConstraint lbc){
+         //reset
+        bestVertex_zeroFixedVariables_forGivenConstraint.clear();
+        bestVertex_oneFixedVariables_forGivenConstraint.clear();
+        objectiveValueAtBestVertex_forGivenConstraint=null;
+        
+        LowerBoundConstraint reducedConstr  = lbc.getReducedConstraint(this.zeroFixedVariables, this.oneFixedVariables) ;
+          
+        //choose vars so that constraint value becomes as small as possible
+        Double constraintValueAtWorstVertex =  DOUBLE_ZERO;
+        for (VariableCoefficientTuple tuple:reducedConstr.sortedConstraintExpr){
+            if (tuple.coeff<ZERO){
+                //fix to 1
+                constraintValueAtWorstVertex +=tuple.coeff;
+                bestVertex_oneFixedVariables_forGivenConstraint.add(tuple.varName);
+            }else{
+                //fix to 0
+                bestVertex_zeroFixedVariables_forGivenConstraint.add(tuple.varName);
+            }
+        }
+        
+        objectiveValueAtBestVertex_forGivenConstraint= constraintValueAtWorstVertex-reducedConstr.lowerBound;
+        
+        Double  result = (objectiveValueAtBestVertex_forGivenConstraint>=ZERO)?  null: objectiveValueAtBestVertex_forGivenConstraint;
+        if (USE_STRICT_INEQUALITY_IN_MIP && DOUBLE_ZERO==objectiveValueAtBestVertex_forGivenConstraint){
+            result = DOUBLE_ZERO;
+        }
+                 
+        return   result ;
+    }
+    
     
     //finds best INFEASIBLE vertex for this constraint, which could be the best unconstrained vertex
     //if not, then use cplex to find best vertex

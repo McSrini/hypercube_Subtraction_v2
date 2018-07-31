@@ -43,13 +43,13 @@ public class Objective {
     }
     
      
-    public String printMe() {
+   /* public String printMe() {
         String str = "";
         
         for (VariableCoefficientTuple tuple : objectiveExpr) {
             str += ("Var is " + tuple.varName  + " and its coeff is "+ tuple.coeff+"\n") ;
         }
         return str;
-    }
+    }*/
     
 }

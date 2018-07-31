@@ -94,8 +94,10 @@ public class CplexTree {
             
             cplex.setParam( IloCplex.Param.Threads, useHypercubes? (USE_HYPERTHREADED_RAMPUP?MAX_THREADS:ONE):MAX_THREADS);
             cplex.setParam( IloCplex.Param.TimeLimit,   SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS *SIXTY*SIXTY);
-            cplex.solve();        
-            printStatictics("Ramp up iteration " + (howManyHours-iteration+ONE)+ " complete ");
+            cplex.solve();      
+            
+            this.printProgess((howManyHours-iteration+ONE) , "Ramp up iteration " + (howManyHours-iteration+ONE)+ " complete " );             
+            
         }
         
         
@@ -109,25 +111,15 @@ public class CplexTree {
     //solve for a few minutes and print stats
     public boolean solveForDuration (int durationSeconds , int iterationNumber) throws IloException {
         
-        boolean isCompletelySolved = true;
-       
         cplex.setParam( IloCplex.Param.TimeLimit,  durationSeconds);
         //use cplex default branching
         cplex.clearCallbacks();
         cplex.use (new EmptyBranchCallback());
         cplex.setParam( IloCplex.Param.Threads, MAX_THREADS);
         cplex.solve();
-        if (cplex.getStatus().equals(Status.Optimal)){
-            //print solution
-            this.printSolution();
-        }else if (cplex.getStatus().equals(Status.Infeasible)) {
-            logger.info("MIP is infeasible" );
-        }else {
-            printStatictics(" Iteration number "+iterationNumber);
-            isCompletelySolved = false;
-        }
-        
-        return isCompletelySolved;
+       
+        return this.printProgess(iterationNumber, " Iteration number ");      
+         
     }
     
     public Status getStatus () throws IloException {
@@ -141,6 +133,23 @@ public class CplexTree {
         for (IloNumVar var :  lpMatrix.getNumVars()) {            
              logger.info ("var is " + var.getName() + " and is soln value is " + cplex.getValue(var, IncumbentId )) ;
         }
+    }
+    
+    private boolean printProgess (int iterationNumber, String header) throws IloException{
+        
+        boolean isCompletelySolved =true;
+        
+        if (cplex.getStatus().equals(Status.Optimal)){
+            //print solution
+            this.printSolution();
+        }else if (cplex.getStatus().equals(Status.Infeasible)) {
+            logger.info("MIP is infeasible" );
+        }else {
+            printStatictics(header+iterationNumber);
+            isCompletelySolved = false;
+        }
+        
+        return isCompletelySolved ;
     }
     
     private void printStatictics (String header) throws IloException {

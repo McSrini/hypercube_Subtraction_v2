@@ -59,7 +59,12 @@ public class MIP_Reader {
         List<LowerBoundConstraint> result = new ArrayList<LowerBoundConstraint>();
         
         IloLPMatrix lpMatrix = (IloLPMatrix)cplex.LPMatrixIterator().next();
-        for (IloRange rangeConstraint : lpMatrix.getRanges()){            
+        int index = ZERO;
+        for (IloRange rangeConstraint : lpMatrix.getRanges()){      
+            
+            //index++;
+            //if (index%THOUSAND==ZERO) System.out.println( "getConstraints "+ index);
+             
              
             boolean isUpperBound = Math.abs(rangeConstraint.getUB())<Double.MAX_VALUE ;
             boolean isLowerBound = Math.abs(rangeConstraint.getLB())<Double.MAX_VALUE ;

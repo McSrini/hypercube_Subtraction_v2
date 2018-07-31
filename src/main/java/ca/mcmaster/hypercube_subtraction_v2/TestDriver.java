@@ -7,9 +7,11 @@ package ca.mcmaster.hypercube_subtraction_v2;
 
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.*; 
+import ca.mcmaster.hypercube_subtraction_v2.collection.Base_RectangleCollector;
 import ca.mcmaster.hypercube_subtraction_v2.collection.BranchingVariableSuggestor;
+import ca.mcmaster.hypercube_subtraction_v2.collection.ConstraintAnchor_RectangleCollector;
 import ca.mcmaster.hypercube_subtraction_v2.collection.Rectangle;
-import ca.mcmaster.hypercube_subtraction_v2.collection.RectangleCollector;
+import ca.mcmaster.hypercube_subtraction_v2.collection.ObjectiveAnchor_RectangleCollector;
 import ca.mcmaster.hypercube_subtraction_v2.common.*;
 import ca.mcmaster.hypercube_subtraction_v2.cplexSolver.CplexTree;
 import ca.mcmaster.hypercube_subtraction_v2.hueristicSolvers.CplexBasedValidator;
@@ -54,6 +56,8 @@ public class TestDriver {
     }
     
     public static void main(String[] args) throws Exception {
+        
+        Base_RectangleCollector collector = null;
                  
         try {
             logger.info ("Start !" );
@@ -61,9 +65,14 @@ public class TestDriver {
             mip.importModel(MIP_FILENAME);
             mip.exportModel(MIP_FILENAME+ ".lp");
            
+            logger.info ("preparing allVariablesInModel ... ");
             allVariablesInModel = MIP_Reader.getVariables(mip) ;
-            objective= MIP_Reader.getObjective(mip);            
+            logger.info ("preparing objective ... ");
+            objective= MIP_Reader.getObjective(mip);     
+            logger.info ("preparing constraints ... ");
             mipConstraintList= MIP_Reader.getConstraints(mip);
+            logger.info ("DONE preparing constraints ... ");
+            System.out.println ("DONE preparing constraints. ");
             
             //check that every var appears in the objective 
             int missingCount = ZERO;
@@ -74,9 +83,13 @@ public class TestDriver {
                     //exit(ONE);
                 }
             }
-            if (missingCount>ZERO) {
-                logger.warn( "Variable count for not occurs in the objective "+missingCount);
-                exit(ONE);
+            if (missingCount>ZERO || USE_CONSTRAINT_ANCHORED_HYPERCUBE_COLLECTOR) {
+                logger.warn( "Variable count missing in the objective "+missingCount);
+                System.err.println( "Variable count missing in the objective "+missingCount);
+                //exit(ONE);
+                collector =   new ConstraintAnchor_RectangleCollector( );   
+            }else{
+                collector =   new ObjectiveAnchor_RectangleCollector( );   
             }
 
             logger.info ("Collected objective and constraints. Dumping parameters:" ) ;
@@ -89,6 +102,7 @@ public class TestDriver {
             logger.info("USE_HYPERTHREADED_RAMPUP "+USE_HYPERTHREADED_RAMPUP) ;             
             logger.info("MIP_EMPHASIS "+MIP_EMPHASIS) ;
             logger.info("USE_PURE_CPLEX "+USE_PURE_CPLEX) ;
+            logger.info("USE_CONSTRAINT_ANCHORED_HYPERCUBE_COLLECTOR "+ USE_CONSTRAINT_ANCHORED_HYPERCUBE_COLLECTOR) ;
             logger.info("USE_ABSORB_AND_MERGE "+USE_MERGE_AND_ABSORB) ; 
             logger.info("SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS "+SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS );
             logger.info("TOTAL_SOLUTION_ITERATIONS "+TOTAL_SOLUTION_ITERATIONS);
@@ -97,29 +111,37 @@ public class TestDriver {
             logger.info("DISABLE_PRESOLVENODE , DISABLE_PRESOLVE ,DISABLE_CUTS ,DISABLE_HEURISTICS,DISABLE_PROBING "+
                     DISABLE_PRESOLVENODE +" "+ DISABLE_PRESOLVE +" "+ DISABLE_CUTS +" "+ DISABLE_HEURISTICS+" "+ DISABLE_PROBING );
             
+            logger.info("halt file can be put here "+(new File(HALT_FILE)).getAbsolutePath()) ;
+            
            
             List<Rectangle> infeasibleHypercubesList = new ArrayList<Rectangle>();
             if (!USE_PURE_CPLEX){
                 //collect infeasible hypercubes
                 logger.info("start hypercube collection");
                  
-                RectangleCollector collector =   new RectangleCollector( );   
-               
                 int index = ZERO;
                 for ( LowerBoundConstraint lbc :  TestDriver.mipConstraintList){
                     collector.reset();
                     collector.collect_INFeasibleHyperCubes(lbc);
                     
-                    if (USE_MERGE_AND_ABSORB && collector.collectedHypercubes.size()>ZERO){   
-                       infeasibleHypercubesList = mergeAndAbsorb (   infeasibleHypercubesList, collector.collectedHypercubes);                        
+                    logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size());
+                    
+                    if (USE_MERGE_AND_ABSORB && collector.collectedHypercubes.size()>ZERO){  
+                       boolean areAllHypercubesCollectedForthisConstraint = collector.collectedHypercubes.size() < HYPERCUBE_COLLECTION_COUNT_THRESHOLD;
+                       int infeasibleHypercubesList_CurrentSize = infeasibleHypercubesList.size();
+                       infeasibleHypercubesList = mergeAndAbsorb (   infeasibleHypercubesList, collector.collectedHypercubes);   
+                       if (infeasibleHypercubesList_CurrentSize==infeasibleHypercubesList.size() && areAllHypercubesCollectedForthisConstraint){
+                           //every infeasible hypercube was collected and absorbed
+                           logger.info("Constraint can be dropped from the model : "+lbc.name) ;
+                       }
                     } else {
                        infeasibleHypercubesList .addAll(collector.collectedHypercubes);   
                     }
-                                        
-                    logger.debug ("for cosntarint " + lbc.name + " collected this many infeasible hypercubes " + collector.collectedHypercubes.size()
-                    + " and infeasibleHypercubesList size "+infeasibleHypercubesList.size());
+                        
+                    logger.debug ("  infeasibleHypercubesList size "+infeasibleHypercubesList.size());
+                    
                     index ++;
-                    if (index%SIXTY==ZERO)        logger.info("Collected for this many constraints "+ index);
+                    if (index%THOUSAND==ZERO)        logger.info("Collected for this many constraints "+ index);
                 }
                                 
                 logger.info("end hypercube collection. Collected this many "+infeasibleHypercubesList.size() );
@@ -179,7 +201,10 @@ public class TestDriver {
         //logger.info("merge and absorb start ...") ;
         RectangleMerger merger = new RectangleMerger (existingList, incomingList) ;
         result= merger.absorbAndMerge( ) ;
-        //logger.info("merge and absorb completed ! ") ;
+        logger.debug("merge and absorb completed , sizes of  existingList incomingList result " + existingList.size() +" , " +
+                incomingList.size()+ " , "+result.size()) ;
+        
+        
 
         if( merger.isMIP_Infeasible) {
             System.out.println("MIP is unfeasible; no need for branching") ;
@@ -190,8 +215,10 @@ public class TestDriver {
     
     private static boolean isHaltFilePresent (){
         File file = new File(HALT_FILE);
-         
+        
         return file.exists();
     }
+    
+    
     
 }

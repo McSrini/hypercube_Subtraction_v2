@@ -91,7 +91,7 @@ public class UpperBoundConstraint {
         return reducedConstraint;
     }
     
-      public String printMe() {
+    /*  public String printMe() {
         String str = "Constraint name "+ name ;
         str+=("Upper bound is "+ this.upperBound+"\n");
         for (VariableCoefficientTuple tuple : sortedConstraintExpr) {
@@ -99,5 +99,5 @@ public class UpperBoundConstraint {
         }
         //System.out.println(str);
         return str;
-    }    
+    }    */
 }

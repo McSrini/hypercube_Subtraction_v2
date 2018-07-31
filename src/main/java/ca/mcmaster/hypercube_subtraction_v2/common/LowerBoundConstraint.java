@@ -44,14 +44,14 @@ public class LowerBoundConstraint {
      
     
      
-     public String printMe() {
+    /* public String printMe() {
         String str = "lower bound Constraint name "+ name ;
         str+=("Lower bound is "+ this.lowerBound+"\n");
         for (VariableCoefficientTuple tuple : sortedConstraintExpr) {
             str += ("Var is " + tuple.varName  + " and its coeff is "+ tuple.coeff+"\n") ;
         }
         return str;
-    } 
+    } */
      
     
     
