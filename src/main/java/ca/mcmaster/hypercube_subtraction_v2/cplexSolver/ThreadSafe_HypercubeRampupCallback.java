@@ -7,6 +7,7 @@ package ca.mcmaster.hypercube_subtraction_v2.cplexSolver;
   
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*; 
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.LOGGING_LEVEL; 
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.PERF_VARIAILITY_RANDOM_GENERATOR;
 import ca.mcmaster.hypercube_subtraction_v2.TestDriver;
 import ca.mcmaster.hypercube_subtraction_v2.collection.*;  
 import ilog.concert.IloException;
@@ -15,6 +16,7 @@ import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.BranchCallback;
 import static java.lang.System.exit;  
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;  
@@ -159,12 +161,16 @@ public class ThreadSafe_HypercubeRampupCallback  extends  HypercubeRampupCallbac
     private String getVarWithLargestObjCoeff(List<String> suggestedBranchingVars){
         String result = null;
         double highestCoeffMagnitude = -Double.MAX_VALUE;
+        
+        //randomly jumble suggestedBranchingVars
+        Collections.shuffle(suggestedBranchingVars,  PERF_VARIAILITY_RANDOM_GENERATOR); 
+        
         for (String var : suggestedBranchingVars) {
             double thisMagnitude = TestDriver.objective.getObjectiveCoeffMagnitude(var );
             if (highestCoeffMagnitude< thisMagnitude) {
                 result = var;
                 highestCoeffMagnitude =thisMagnitude;
-            }
+            }  
         }
         return result;
     }

@@ -20,7 +20,7 @@ public class Parameters {
     //public static final String MIP_FILENAME = "F:\\temporary files here\\knapsackTinyInfeasible.lp";  ////x1 x7  x4  x2
     //public static final String MIP_FILENAME = "F:\\temporary files here\\knapsackSmall.lp";  ////x1 x7  x4  x2
     //public static final String MIP_FILENAME = "F:\\temporary files here\\knapsackFourTest.lp"; 
-    public static final String MIP_FILENAME = "F:\\temporary files here\\opm2-z12-s7.mps";
+    //public static final String MIP_FILENAME = "F:\\temporary files here\\opm2-z12-s7.mps";
     //public static final String MIP_FILENAME = "F:\\temporary files here\\opm2-z12-s14.mps";
     //public static final String MIP_FILENAME = "F:\\temporary files here\\queens-30.mps";
     //public static final String MIP_FILENAME = "F:\\temporary files here\\ivu52.mps";
@@ -43,8 +43,9 @@ public class Parameters {
     //public static final String MIP_FILENAME = "wnq.mps";
     //public static final String MIP_FILENAME = "neos-807456.mps";
     //public static final String MIP_FILENAME = "stp3d.mps";
-    //public static final String MIP_FILENAME = "seymour-disj-10.mps";
+    public static final String MIP_FILENAME = "seymour-disj-10.mps";
     //public static final String MIP_FILENAME = "p6b.mps";
+    //public static final String MIP_FILENAME = "sts405.mps";
     //public static final String MIP_FILENAME = "hanoi5.mps";
     //public static final String MIP_FILENAME = "reblock354.mps";
     //public static final String MIP_FILENAME = "protfold.mps";
@@ -58,11 +59,12 @@ public class Parameters {
     //public static final String MIP_FILENAME = "cov1075.mps";
     //public static final String MIP_FILENAME = "p6b.mps";
     //public static final String MIP_FILENAME = "nvmxnnmnm,mncmn , ,mnmvc,vmcnishani.mps";
+    //public static final String MIP_FILENAME = "neos-952987.mps";
     
     //for minimization problems , collect infeasible hypercubes whose LP is strictly lower (i.e better) than this
     public static final double HYPERCUBE_COLLECTION_LP_THRESHOLD = BILLION;
     //at most 10 hypercubes per constraint
-    public static final int HYPERCUBE_COLLECTION_COUNT_THRESHOLD = 10;
+    public static final int HYPERCUBE_COLLECTION_COUNT_THRESHOLD = 32;
     
     //our method is used to branch only for the first few leafs
     public static final int RAMP_UP_FOR_THIS_MANY_HOURS  = 1  ;
@@ -78,13 +80,16 @@ public class Parameters {
     public static final Level LOGGING_LEVEL= Level.INFO ;    
     public static final int MIP_EMPHASIS=  ZERO;
     public static final int MAX_THREADS= 32;
-    
+     
     public static final boolean USE_HYPERTHREADED_RAMPUP = true;
     
-    public static final boolean DISABLE_HEURISTICS= true; 
-    public static final boolean DISABLE_PROBING= true; 
-    public static final boolean DISABLE_PRESOLVENODE = true ;
-    public static final boolean DISABLE_PRESOLVE = true;
-    public static final boolean DISABLE_CUTS = true;
+    public static final boolean DISABLE_HEURISTICS= false; 
+    public static final boolean DISABLE_PROBING= false; 
+    public static final boolean DISABLE_PRESOLVENODE = false ;
+    public static final boolean DISABLE_PRESOLVE = false;
+    public static final boolean DISABLE_CUTS = false;
+    
+    public static final long PERF_VARIABILITY_RANDOM_SEED = 10;
+    public static final java.util.Random  PERF_VARIAILITY_RANDOM_GENERATOR = new  java.util.Random  (PERF_VARIABILITY_RANDOM_SEED);
 
 }
