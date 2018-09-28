@@ -105,6 +105,8 @@ public class ThreadSafe_HypercubeRampupCallback  extends  HypercubeRampupCallbac
          
     }
     
+    //make these methods protected in the parent class, instead of copying them into the child
+    //
     private NodePayload getChildPayload (boolean isZeroChild,String branchingVariable,  NodePayload parent_nodeData,  List<Rectangle> child_hypercubesList) {
         
         NodePayload payload = new NodePayload ();
