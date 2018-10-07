@@ -15,7 +15,7 @@ import org.apache.log4j.Level;
  */
 public class Parameters {
         
-    public static final String MIP_FILENAME = "F:\\temporary files here\\neos-807456.mps";  ////x1 x7  x4  x2
+    //public static final String MIP_FILENAME = "F:\\temporary files here\\neos-807456.mps";  ////x1 x7  x4  x2
     //public static final String MIP_FILENAME = "F:\\temporary files here\\queens-30.mps";
     //public static final String MIP_FILENAME = "F:\\temporary files here\\knapsackTinyInfeasible.lp";  ////x1 x7  x4  x2
     //public static final String MIP_FILENAME = "F:\\temporary files here\\knapsackSmall.lp";  ////x1 x7  x4  x2
@@ -44,7 +44,7 @@ public class Parameters {
     //public static final String MIP_FILENAME = "neos-807456.mps";
     //public static final String MIP_FILENAME = "stp3d.mps";
     //public static final String MIP_FILENAME = "seymour-disj-10.mps";
-    //public static final String MIP_FILENAME = "p6b.mps";
+    public static final String MIP_FILENAME = "p6b.mps";
     //public static final String MIP_FILENAME = "sts405.mps";
     //public static final String MIP_FILENAME = "hanoi5.mps";
     //public static final String MIP_FILENAME = "reblock354.mps";
@@ -69,12 +69,13 @@ public class Parameters {
     //our method is used to branch only for the first few leafs
     public static final int RAMP_UP_FOR_THIS_MANY_HOURS  = 1 ;
     public static final int SOLUTION_DURATION_HOURS_BEFORE_LOGGING_STATITICS= 1;
-    public static int TOTAL_SOLUTION_ITERATIONS =  24*7 ; //7 days of logging
+    public static int TOTAL_SOLUTION_ITERATIONS =  24*5 ; //5 days of logging
         
     public static final boolean USE_PURE_CPLEX =  false;
     public static final boolean USE_MERGE_AND_ABSORB =  true; 
     
     public static final boolean  USE_CONSTRAINT_ANCHORED_HYPERCUBE_COLLECTOR= true;
+    public static final boolean USE_CPLEX_TO_FIND_BEST_INFEASIBLE_VERTEX = false;
     
     public static boolean USE_STRICT_INEQUALITY_IN_MIP = false;
     public static final Level LOGGING_LEVEL= Level.INFO ;    
@@ -89,7 +90,7 @@ public class Parameters {
     public static final boolean DISABLE_PRESOLVE = true;
     public static final boolean DISABLE_CUTS = true;
     
-    public static final long PERF_VARIABILITY_RANDOM_SEED = 3;
+    public static final long PERF_VARIABILITY_RANDOM_SEED = 101;
     public static final java.util.Random  PERF_VARIAILITY_RANDOM_GENERATOR = new  java.util.Random  (PERF_VARIABILITY_RANDOM_SEED);
 
 }

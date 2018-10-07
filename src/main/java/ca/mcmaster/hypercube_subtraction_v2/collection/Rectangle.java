@@ -6,6 +6,7 @@
 package ca.mcmaster.hypercube_subtraction_v2.collection;
   
 import static ca.mcmaster.hypercube_subtraction_v2.Constants.*;
+import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_CPLEX_TO_FIND_BEST_INFEASIBLE_VERTEX;
 import static ca.mcmaster.hypercube_subtraction_v2.Parameters.USE_STRICT_INEQUALITY_IN_MIP;
 import ca.mcmaster.hypercube_subtraction_v2.TestDriver;
 import ca.mcmaster.hypercube_subtraction_v2.collection.cplex.CplexBased_BestVertexFinder;
@@ -264,7 +265,7 @@ public class Rectangle {
             
             objectiveValueAtBestVertex_forGivenConstraint= this.objectiveValueAtBestUnconstrainedVertex;
              
-        }else {
+        }else  if (USE_CPLEX_TO_FIND_BEST_INFEASIBLE_VERTEX) {
             //must use CPLEX to find the best vertex
             CplexBased_BestVertexFinder bestVertex_Finder = 
                     new CplexBased_BestVertexFinder (  ubc,  this. zeroFixedVariables,  this. oneFixedVariables);
